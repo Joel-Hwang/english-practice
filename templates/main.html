@@ -59,7 +59,10 @@
       </div>
     </div>
 
-    <div id="card-container" class="d-flex flex-wrap"></div>
+    <div
+      id="card-container"
+      class="d-flex flex-wrap justify-content-center align-items-center"
+    ></div>
 
     <template id="card-template">
       <div
@@ -134,7 +137,6 @@
       window.onload = async () => {
         await getQuestions();
         await getHistories(1, displayCards);
-        displayQuestion();
       };
 
       function displayCards(histories) {
@@ -193,7 +195,7 @@
         explanations.innerHTML = "";
       }
 
-      function getQuestions() {
+      async function getQuestions() {
         fetch("questions", { method: "GET" })
           .then((response) => {
             if (!response.ok) throw new Error("서버 응답 오류");
@@ -207,6 +209,9 @@
           })
           .catch((error) => {
             console.error("에러 발생:", error);
+          })
+          .finally(() => {
+            displayQuestion();
           });
       }
 
@@ -280,7 +285,7 @@
           });
       }
 
-      function displayQuestion() {
+      async function displayQuestion() {
         if (gCurrentQuestionIndex >= gQuestions.length)
           document.getElementById("practice").style.display = "none";
         else document.getElementById("practice").style.display = "block";

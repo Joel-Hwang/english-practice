@@ -16,6 +16,7 @@ import json
 import logging
 from pymongo.errors import ServerSelectionTimeoutError
 from dotenv import load_dotenv
+import bcrypt
 import os
 import openai
 from openai import OpenAI
@@ -35,6 +36,7 @@ try:
     db = client["englishpractice"]
     collection_history = db["histories"]
     collection_question = db["questions"]
+    collection_user = db["user"]
     # 연결 확인
     client.admin.command("ping")
     logger.info("MongoDB connected successfully.")
@@ -58,24 +60,48 @@ Return your answer in JSON format as follows:
 {{
   "corrected": "...",
   "explanations": ["반드시 한국어로 설명"],
-  "conversational_fluency_score": "Very Good"
+  "conversational_fluency_score": "Very Good or Good or Okay or Fair or Meh"
 }}
 Sentence: {0}"""
 
-@app.get("/login", response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
 async def get_login(request: Request):
+    user = request.session.get("user")
+    if user:
+        return RedirectResponse(url="/main", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/register", response_class=HTMLResponse)
+async def post_register(request: Request):
+    data = await request.json()
+    userid = data.get("userid", "")
+    password = data.get("password", "")
+
+    document = { "userid": userid, "password": hash_password(password), "createdAt": datetime.now(timezone.utc)}
+    collection_user.insert_one(document)
+    return JSONResponse(content={"message": "User registered successfully"})
 
 @app.post("/login", response_class=HTMLResponse)
 async def post_login(request: Request, username: str = Form(...), password: str = Form(...)):
-    request.session["user"] = username
+    user = await collection_user.find_one({"userid": username})
+    if user and verify_password(password, user["password"]):
+        request.session["user"] = username
+    else:
+        raise HTTPException(status_code=401, detail="아이디 혹은 패스워드가 잘못되었습니다.")
+    return RedirectResponse(url="/main", status_code=302)
+
+@app.get("/main", response_class=HTMLResponse)
+async def get_questions(request: Request):
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("main.html", {"request": request})
 
 @app.get("/question", response_class=HTMLResponse)
 async def get_questions(request: Request):
     user = request.session.get("user")
     if user != 'Joel':
-        return RedirectResponse(url="/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     return templates.TemplateResponse("question.html", {"request": request})
 
 @app.get("/questions", response_class=HTMLResponse)
@@ -87,7 +113,7 @@ async def get_questions():
 async def post_questions(request: Request):
     user = request.session.get("user")
     if user != 'Joel':
-        return RedirectResponse(url="/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     data = await request.json()
     questions = data.get("questions", [])
 
@@ -110,7 +136,7 @@ async def get_histories(request: Request, page: int = Query(1, ge=1),
     size: int = Query(10, ge=1, le=100)):
     user = request.session.get("user")
     if not user:
-        return RedirectResponse(url="/login", status_code=302)
+        return RedirectResponse(url="/", status_code=302)
     skip = (page - 1) * size
 
     cursor = (
@@ -131,7 +157,7 @@ async def get_histories(request: Request, page: int = Query(1, ge=1),
 async def chat_with_lmstudio(request: Request, chat: ChatRequest):
     user = request.session.get("user")
     if not user:
-         return RedirectResponse(url="/login", status_code=302)
+         return RedirectResponse(url="/", status_code=302)
     
     
     client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
@@ -185,5 +211,11 @@ def extract_clean_json_strings(text: str) -> List[str]:
 }"""]
 
     return results
+
+def hash_password(password: str) -> str:
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password: str, hashed: str) -> bool:
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 
