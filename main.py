@@ -37,7 +37,7 @@ try:
     os.getenv("MONGO_URI"),
     tls=True,
     tlsCAFile=certifi.where(),
-    serverSelectionTimeoutMS=5000
+    serverSelectionTimeoutMS=50000
 )
     
     db = client["englishpractice"]
