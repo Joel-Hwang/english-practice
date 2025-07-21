@@ -1,3 +1,4 @@
+import certifi
 from fastapi import FastAPI, Request, Form, HTTPException, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -32,7 +33,13 @@ app.mount("/images", StaticFiles(directory="images"), name="images")
 templates = Jinja2Templates(directory="templates")
 
 try:
-    client = AsyncIOMotorClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=5000)
+    client = AsyncIOMotorClient(
+    os.getenv("MONGO_URI"),
+    tls=True,
+    tlsCAFile=certifi.where(),
+    serverSelectionTimeoutMS=5000
+)
+    
     db = client["englishpractice"]
     collection_history = db["histories"]
     collection_question = db["questions"]

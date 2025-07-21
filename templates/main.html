@@ -67,7 +67,7 @@
     <template id="card-template">
       <div
         class="card"
-        style="max-width: 11.5rem; margin: 0.2rem; cursor: pointer"
+        style="max-width: 20rem; margin: 0.2rem; cursor: pointer"
       >
         <img class="card-img-top" />
         <div class="card-body">
@@ -137,6 +137,7 @@
       window.onload = async () => {
         await getQuestions();
         await getHistories(1, displayCards);
+        displayQuestion();
       };
 
       function displayCards(histories) {
@@ -196,7 +197,7 @@
       }
 
       async function getQuestions() {
-        fetch("questions", { method: "GET" })
+        await fetch("questions", { method: "GET" })
           .then((response) => {
             if (!response.ok) throw new Error("서버 응답 오류");
             return response.json();
@@ -209,14 +210,11 @@
           })
           .catch((error) => {
             console.error("에러 발생:", error);
-          })
-          .finally(() => {
-            displayQuestion();
           });
       }
 
-      function getHistories(page, callback) {
-        fetch("histories?page=" + page + "&size=10", { method: "GET" })
+      async function getHistories(page, callback) {
+        await fetch("histories?page=" + page + "&size=10", { method: "GET" })
           .then((response) => {
             if (!response.ok) throw new Error("서버 응답 오류");
             return response.json();
