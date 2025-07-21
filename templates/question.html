@@ -45,65 +45,42 @@
     <div class="d-flex align-items-center mb-3">
       <h5 class="m-0 fw-bold">Input Questions</h5>
     </div>
-
+    <button id="add-btn" class="btn btn-success me-2" type="button">+</button>
+    <button id="remove-btn" class="btn btn-danger" type="button">-</button>
     <form id="questionForm">
-      <!-- 10 Question Inputs -->
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 1"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 2"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 3"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 4"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 5"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 6"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 7"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 8"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 9"
-      />
-      <input
-        type="text"
-        class="form-control question-input"
-        placeholder="Question 10"
-      />
-
-      <!-- Save Button -->
+      <div id="inputs"></div>
       <button type="submit" class="btn btn-primary mt-3 btn-save">Save</button>
     </form>
 
     <script>
+      const inputs = document.getElementById("inputs");
+      const addBtn = document.getElementById("add-btn");
+      const removeBtn = document.getElementById("remove-btn");
+
+      let count = 0;
+      addBtn.addEventListener("click", () => {
+        count++;
+        const input = document.createElement("input");
+        input.type = "text";
+        input.className = "form-control question-input mb-2";
+        input.placeholder = `Question ${count}`;
+        input.name = `question${count}`;
+        inputs.appendChild(input);
+      });
+
+      removeBtn.addEventListener("click", () => {
+        if (inputs.lastChild) {
+          inputs.removeChild(inputs.lastChild);
+          count--;
+        }
+      });
+
+      window.onload = () => {
+        // 페이지 로드 시 첫 번째 입력 필드 추가
+        for (let i = 0; i < 11; i++) {
+          addBtn.click();
+        }
+      };
       document
         .getElementById("questionForm")
         .addEventListener("submit", function (e) {
@@ -112,7 +89,7 @@
           const questions = [];
 
           inputs.forEach((input, index) => {
-            questions.push(input.value.trim());
+            if (input.value.trim() != "") questions.push(input.value.trim());
           });
 
           // 콘솔에 출력
@@ -124,7 +101,10 @@
             body: JSON.stringify({ questions }),
           })
             .then((response) => response.json())
-            .then((data) => alert(data.message))
+            .then((data) => {
+              alert(data.message);
+              window.location.href = "/main";
+            })
             .catch((error) => alert("Error:", error));
         });
     </script>

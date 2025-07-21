@@ -46,34 +46,162 @@
     </style>
   </head>
   <body style="margin: 20px">
-    <div class="login-form">
-      <form method="post" action="/login">
-        <div class="input-group mb-3 login-input">
-          <span class="input-group-text">ID</span>
-          <input
-            type="text"
-            class="form-control"
-            placeholder="Enter your ID"
-            id="username"
-            name="username"
-            required
-          />
-        </div>
+    <div>
+      <div id="users" class="d-flex justify-content-center"></div>
+      <div class="login-form">
+        <form method="post" action="/login">
+          <div class="input-group mb-3 login-input">
+            <span class="input-group-text">ID</span>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Enter your ID"
+              id="userid"
+              name="userid"
+              required
+            />
+          </div>
 
-        <div class="input-group mb-3 login-input">
-          <span class="input-group-text">Password</span>
-          <input
-            type="password"
-            class="form-control"
-            placeholder="Enter your password"
-            id="password"
-            name="password"
-            required
-          />
-        </div>
+          <div class="input-group mb-3 login-input">
+            <span class="input-group-text">Password</span>
+            <input
+              type="password"
+              class="form-control"
+              placeholder="Enter your password"
+              id="password"
+              name="password"
+              required
+            />
+          </div>
 
-        <button type="submit" class="btn btn-primary">Log in</button>
-      </form>
+          <button type="submit" class="btn btn-primary">Log in</button>
+        </form>
+        <a
+          class="mt-3"
+          style="cursor: pointer"
+          onclick="toggleChangePasswordForm()"
+          >Change Password</a
+        >
+        <div id="change-password-form" style="display: none; width: 100%">
+          <div class="input-group mb-3 login-input">
+            <span class="input-group-text">Original Password</span>
+            <input
+              type="password"
+              class="form-control"
+              id="original-password"
+              name="original-password"
+            />
+          </div>
+          <div class="input-group mb-3 login-input">
+            <span class="input-group-text">New Password</span>
+            <input
+              type="password"
+              class="form-control"
+              id="new-password"
+              name="new-password"
+            />
+          </div>
+          <div class="input-group mb-3 login-input">
+            <span class="input-group-text">Password Confirm</span>
+            <input
+              type="password"
+              class="form-control"
+              id="confirm-password"
+              name="confirm-password"
+            />
+          </div>
+          <button
+            type="button"
+            class="btn btn-primary"
+            onclick="changePassword()"
+          >
+            Change Password
+          </button>
+        </div>
+      </div>
     </div>
+    <script>
+      function getUsers() {
+        fetch("/users")
+          .then((response) => response.json())
+          .then((data) => {
+            const userSelect = document.getElementById("users");
+            userSelect.innerHTML = ""; // Clear existing options
+            data.forEach((user) => {
+              const span = document.createElement("a");
+              span.textContent = user;
+              span.className = "link-opacity-100";
+              span.style.cursor = "pointer";
+              span.style.marginRight = "10px";
+              span.onclick = () => {
+                document.getElementById("userid").value = user;
+              };
+              userSelect.appendChild(span);
+            });
+          })
+          .catch((error) => console.error("Error fetching users:", error));
+      }
+
+      function require(id) {
+        const element = document.getElementById(id);
+        if (!element.value) {
+          element.style.borderColor = "red";
+          setTimeout(() => {
+            element.style.borderColor = "";
+          }, 3000);
+          return false;
+        }
+        return true;
+      }
+      function toggleChangePasswordForm() {
+        const form = document.getElementById("change-password-form");
+        form.style.display = form.style.display === "none" ? "block" : "none";
+      }
+      function changePassword() {
+        const id = document.getElementById("userid").value;
+        const originalPassword =
+          document.getElementById("original-password").value;
+        const newPassword = document.getElementById("new-password").value;
+        const confirmPassword =
+          document.getElementById("confirm-password").value;
+        if (!id || !originalPassword || !newPassword || !confirmPassword) {
+          alert("Please fill in all fields.");
+          if (!id) require("userid");
+          if (!originalPassword) require("original-password");
+          if (!newPassword) require("new-password");
+          if (!confirmPassword) require("confirm-password");
+          return;
+        }
+
+        if (newPassword !== confirmPassword) {
+          alert("New password and confirmation do not match.");
+          return;
+        }
+
+        fetch("/change_password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            userid: id,
+            original_password: originalPassword,
+            new_password: newPassword,
+            confirm_password: confirmPassword,
+          }),
+        })
+          .then((response) => response.json())
+          .then((data) => {
+            alert(data.message);
+            const form = document.getElementById("change-password-form");
+            form.style.display = "none";
+          })
+          .catch((error) => alert(error.message));
+      }
+
+      window.onload = () => {
+        getUsers(); // 페이지 로드 시 사용자 목록 가져오기
+      };
+    </script>
   </body>
 </html>

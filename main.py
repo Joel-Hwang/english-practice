@@ -5,7 +5,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 import requests
-from pymongo import DESCENDING
+from pymongo import ASCENDING, DESCENDING
 import re
 from typing import List
 from datetime import datetime, timezone
@@ -84,13 +84,31 @@ async def post_register(request: Request):
     return JSONResponse(content={"message": "User registered successfully"})
 
 @app.post("/login", response_class=HTMLResponse)
-async def post_login(request: Request, username: str = Form(...), password: str = Form(...)):
-    user = await collection_user.find_one({"userid": username})
+async def post_login(request: Request, userid: str = Form(...), password: str = Form(...)):
+    user = await collection_user.find_one({"userid": userid})
     if user and verify_password(password, user["password"]):
-        request.session["user"] = username
+        request.session["user"] = userid
     else:
         raise HTTPException(status_code=401, detail="아이디 혹은 패스워드가 잘못되었습니다.")
     return RedirectResponse(url="/main", status_code=302)
+
+@app.post("/change_password", response_class=HTMLResponse)
+async def post_change_password(request: Request):
+    data = await request.json()
+    userid = data.get("userid")
+    original_password = data.get("original_password")
+    new_password = data.get("new_password")
+    confirm_password = data.get("confirm_password")
+
+    if new_password != confirm_password:
+        raise HTTPException(status_code=400, detail="New password and confirmation do not match.")
+
+    user_doc = await collection_user.find_one({"userid": userid})
+    if user_doc and verify_password(original_password, user_doc["password"]):
+        await collection_user.update_one({"userid": userid}, {"$set": {"password": hash_password(new_password)}})
+    else:
+        return JSONResponse(content={  "message": "The original password is incorrect."}, status_code=400) 
+    return JSONResponse(content={"message": "Password changed successfully"})
 
 @app.get("/main", response_class=HTMLResponse)
 async def get_questions(request: Request):
@@ -108,8 +126,15 @@ async def get_questions(request: Request):
 
 @app.get("/questions", response_class=HTMLResponse)
 async def get_questions():
-    latest_doc = await collection_question.find_one(sort=[("created_at", DESCENDING)])
-    return JSONResponse(content=latest_doc['questions']) 
+    latest_doc = await collection_question.find_one(sort=[("createdAt", DESCENDING)])
+    return JSONResponse(content=latest_doc['questions'])
+
+@app.get("/users", response_class=HTMLResponse)
+async def get_users():
+    cursor = collection_user.find({}, {"_id": 0, "userid": 1}).sort("userid", ASCENDING)
+    users = await cursor.to_list(length=None)
+    names = [user["userid"] for user in users]
+    return JSONResponse(content=names)
 
 @app.post("/questions", response_class=HTMLResponse)
 async def post_questions(request: Request):
