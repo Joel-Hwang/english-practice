@@ -37,7 +37,8 @@ try:
     os.getenv("MONGO_URI"),
     tls=True,
     tlsCAFile=certifi.where(),
-    tlsAllowInvalidCertificates=True,  # 임시 우회 옵션
+    tlsAllowInvalidCertificates=True,  
+    tlsInsecure=True,  
     serverSelectionTimeoutMS=50000
 )
     
