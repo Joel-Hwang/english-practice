@@ -36,8 +36,8 @@ try:
     client = AsyncIOMotorClient(
     os.getenv("MONGO_URI"),
     tls=True,
-    tlsCAFile=certifi.where(),
-    tlsAllowInvalidCertificates=True,  
+    #tlsCAFile=certifi.where(),
+    #tlsAllowInvalidCertificates=True,  # 임시
     tlsInsecure=True,  
     serverSelectionTimeoutMS=50000
 )
