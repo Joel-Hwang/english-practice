@@ -36,8 +36,10 @@ try:
     client = AsyncIOMotorClient(
     os.getenv("MONGO_URI"),
     tls=True,
-    tlsCAFile=certifi.where(),
-    serverSelectionTimeoutMS=50000
+    tlsInsecure=True,  # 개발환경용
+    serverSelectionTimeoutMS=50000,
+    maxPoolSize=10,
+    minPoolSize=1
 )
     
     db = client["englishpractice"]
