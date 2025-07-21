@@ -33,15 +33,8 @@ app.mount("/images", StaticFiles(directory="images"), name="images")
 templates = Jinja2Templates(directory="templates")
 
 try:
-    client = AsyncIOMotorClient(
-    os.getenv("MONGO_URI"),
-    tls=True,
-    #tlsCAFile=certifi.where(),
-    #tlsAllowInvalidCertificates=True,  # 임시
-    tlsInsecure=True,  
-    serverSelectionTimeoutMS=50000
-)
-    
+    client = AsyncIOMotorClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=50000)
+
     db = client["englishpractice"]
     collection_history = db["histories"]
     collection_question = db["questions"]
