@@ -189,7 +189,7 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
     
     client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
     response = client.chat.completions.create(
-        model="gpt-3.5-turbo",
+        model="gpt-4.1-mini",
         messages=[
             {"role": "system", "content": "You are an expert in English grammar and conversational fluency."},
             {"role": "user", "content": prompt.format(chat.sentence)}
