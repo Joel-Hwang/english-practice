@@ -146,7 +146,14 @@
         const template = document.getElementById("card-template");
         histories.forEach((item) => {
           const clone = template.content.cloneNode(true);
-          const reply = JSON.parse(item.reply);
+          let reply = {
+            corrected: "Error",
+            explanations: [],
+            conversational_fluency_score: "Error",
+          };
+          try {
+            reply = JSON.parse(item.reply);
+          } catch (e) {}
           // 이미지
           clone.querySelector(".card-img-top").src =
             "./images/" + reply.conversational_fluency_score + ".png";
