@@ -15,6 +15,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
 import json
 import logging
+from typing import List
 from pymongo.errors import ServerSelectionTimeoutError
 from dotenv import load_dotenv
 import bcrypt
@@ -58,7 +59,7 @@ prompt = """Given the sentence below, please do the following:
 1. Correct grammar errors and provide a more natural, colloquial version of the sentence.
 2. Score the original sentence on Conversational fluency (Very Good, Good, Okay, Fair, Meh)
 3. 어떤 부분을 왜 교정했는지 한국어로 설명.
-Return your answer in JSON format as follows:
+Return your answer in **valid JSON** format as follows:
 {{
   "corrected": "...",
   "explanations": ["반드시 한국어로 설명"],
@@ -198,26 +199,41 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
 
     try:
         reply = response.choices[0].message.content
-        print(reply)
         results = extract_clean_json_strings(reply.strip())
-        print(results[0].replace("\n", ""))
+        formatted_reply = results[0].replace("\n", "")
+        if not is_valid_json(formatted_reply):
+            formatted_reply = await fix_json_string(formatted_reply)
         
         await collection_history.insert_one({
             "user": user, 
-            "reply": results[0].replace("\n", ""), 
+            "reply":formatted_reply, 
             "questionIndex": chat.questionIndex,
             "question": chat.question, 
             "answer":chat.sentence, 
             "createdAt": datetime.now(timezone.utc)})
-        return {"reply": results[0].replace("\n", "")}
+        return {"reply": formatted_reply}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+async def fix_json_string(json_str: str) -> str:
+    client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
+    response = client.chat.completions.create(
+        model="gpt-4.1-nano",
+        messages=[
+            {"role": "system", "content": "You are an expert in json formatting."},
+            {"role": "user", "content": "Fix the following string to **valid JSON format** and return the JSON: " + json_str}
+        ],
+    )
+    return response.choices[0].message.content
 
-import json
-from typing import List
+def is_valid_json(json_str: str) -> bool:
+    try:
+        json.loads(json_str)
+        return True
+    except ValueError:
+        return False
 
-def extract_clean_json_strings(text: str) -> List[str]:
+async def extract_clean_json_strings(text: str) -> List[str]:
     pattern = r'\{.*?\}'  # 중괄호로 감싸인 JSON 문자열 추출 (비재귀, 단순)
     raw_matches = re.findall(pattern, text, re.DOTALL)
 
