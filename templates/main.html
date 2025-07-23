@@ -90,6 +90,7 @@
       const spanQuestion = document.getElementById("question");
       let gQuestions = [];
       let gCurrentQuestionIndex = 0;
+      let gCurrentPage = 1;
       let recognition = null;
       const SpeechRecognition =
         window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -140,9 +141,20 @@
         displayQuestion();
       };
 
-      function displayCards(histories) {
+      window.addEventListener("scroll", async () => {
+        const nearBottom =
+          window.innerHeight + window.scrollY >=
+          document.body.offsetHeight - 100;
+        if (nearBottom) {
+          await getHistories(++gCurrentPage, displayCards);
+        }
+      });
+
+      function displayCards(histories, clean) {
         const container = document.getElementById("card-container");
-        container.innerHTML = "";
+        if (clean) {
+          container.innerHTML = "";
+        }
         const template = document.getElementById("card-template");
         histories.forEach((item) => {
           const clone = template.content.cloneNode(true);
@@ -174,7 +186,8 @@
 
         if (
           histories.length > 0 &&
-          gQuestions.includes(histories[0].question)
+          gQuestions.includes(histories[0].question) &&
+          clean
         ) {
           gCurrentQuestionIndex = histories[0].questionIndex + 1;
           spanQuestion.textContent = gQuestions[gCurrentQuestionIndex];
@@ -227,7 +240,7 @@
             return response.json();
           })
           .then((data) => {
-            callback(data);
+            callback(data, page === 1);
           })
           .catch((error) => {
             console.error("에러 발생:", error);
