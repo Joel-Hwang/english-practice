@@ -23,7 +23,8 @@ import os
 import openai
 from openai import OpenAI
 import tempfile
-
+import base64
+import httpx
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
@@ -82,8 +83,9 @@ async def post_register(request: Request):
     data = await request.json()
     userid = data.get("userid", "")
     password = data.get("password", "")
+    gender = data.get("gender", "")
 
-    document = { "userid": userid, "password": hash_password(password), "createdAt": datetime.now(timezone.utc)}
+    document = { "userid": userid, "password": hash_password(password), "gender": gender, "createdAt": datetime.now(timezone.utc)}
     collection_user.insert_one(document)
     return JSONResponse(content={"message": "User registered successfully"})
 
@@ -160,6 +162,8 @@ async def get_detail(id: str, request: Request):
     reply = json.loads(history['reply'])
     reply['question'] = history['question']
     reply['answer'] = history['answer']
+    reply['_id'] = str(history['_id'])
+    reply['audioUrl'] = str(history['audioUrl']) if 'audioUrl' in history else ''
     return templates.TemplateResponse("detail.html", {"request": request, "reply": reply})
 
 @app.get("/histories", response_class=HTMLResponse)
@@ -219,47 +223,95 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+#@app.post("/transcribe")
+#async def transcribe_audio(file: UploadFile = File(...)):
+#    try:
+#        with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
+#            content = await file.read()
+#            temp_file.write(content)
+#            temp_path = temp_file.name
+#        client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
+#        with open(temp_path, "rb") as audio_file:
+#            response = client.audio.transcriptions.create(
+#                model="whisper-1",
+#                file=audio_file,
+#                response_format="json",
+#                language="en"
+#            )
+#
+#        return JSONResponse(content={"text": response.text})
+#
+#    except Exception as e:
+#        return JSONResponse(status_code=500, content={"error": str(e)})
+#
+#    finally:
+#        if os.path.exists(temp_path):
+#            os.remove(temp_path) 
+
+model = WhisperModel("base", device="cpu", compute_type="int8")
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
+        content = await file.read()
+        temp_file.write(content)
+        temp_path = temp_file.name
+
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
-            content = await file.read()
-            temp_file.write(content)
-            temp_path = temp_file.name
-        client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
-        with open(temp_path, "rb") as audio_file:
-            response = client.audio.transcriptions.create(
-                model="whisper-1",
-                file=audio_file,
-                response_format="json",
-                language="en"
-            )
-
-        return JSONResponse(content={"text": response.text})
-
+        segments, info = model.transcribe(temp_path)
+        text = " ".join([segment.text for segment in segments])
+        return JSONResponse(content={"text": text})
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
 
-    finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path) 
 
-#model = WhisperModel("base", device="cpu", compute_type="int8")
-#@app.post("/transcribe")
-#async def transcribe_audio(file: UploadFile = File(...)):
-#    with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
-#        content = await file.read()
-#        temp_file.write(content)
-#        temp_path = temp_file.name
-#
-#    try:
-#        segments, info = model.transcribe(temp_path)
-#        text = " ".join([segment.text for segment in segments])
-#        return JSONResponse(content={"text": text})
-#    except Exception as e:
-#        return JSONResponse(status_code=500, content={"error": str(e)})
+@app.post("/upload-voice")
+async def upload_voice(request: Request):
+    user = request.session.get("user")
+    if not user:
+         return RedirectResponse(url="/", status_code=302)
+    currentUser = await collection_user.find_one({"userid": user})
+    gender = currentUser.pop("gender", "female")
+    voice = "shimmer" if gender == "female" else "echo"
+    data = await request.json()
+    historyId = data.get("historyId", "")
+    corrected = data.get("corrected", "")
+    
+    client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
+    speech_response = client.audio.speech.create(
+        model="tts-1",
+        voice=voice,
+        input=corrected
+    )
 
+    encoded_content = base64.b64encode(speech_response.content).decode("utf-8")
 
+    filename = f"uploads/{historyId}.mp3"
+    api_url = f"https://api.github.com/repos/{os.getenv("GITHUB_REPO")}/contents/{filename}"
+
+    headers = {
+        "Authorization": f"Bearer {os.getenv("GITHUB_TOKEN")}",
+        "Accept": "application/vnd.github+json",
+    }
+
+    data = {
+        "message": f"upload {historyId}.mp3",
+        "content": encoded_content,
+        "branch": os.getenv("GITHUB_BRANCH"),
+    }
+
+    async with httpx.AsyncClient() as client:
+        response = await client.put(api_url, headers=headers, json=data)
+
+    if response.status_code in [200, 201]:
+        audioUrl = f"https://raw.githubusercontent.com/{os.getenv("GITHUB_REPO")}/{os.getenv("GITHUB_BRANCH")}/{filename}"
+        await collection_history.update_one({"_id": historyId}, {"$set": {"audioUrl": audioUrl}})
+        return JSONResponse(content={"message": "File uploaded", "audioUrl": audioUrl})
+    else:
+        return JSONResponse(
+            status_code=response.status_code,
+            content={"error": "GitHub upload failed", "detail": response.text},
+        )
+    
 async def fix_json_string(json_str: str) -> str:
     client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
     response = client.chat.completions.create(

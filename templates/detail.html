@@ -21,8 +21,20 @@
       <p class="mb-0">{{ reply.answer }}</p>
     </div>
     <div class="mb-4">
-      <h5>Corrected Answer</h5>
-      <p class="mb-0">{{ reply.corrected }}</p>
+      <h5>
+        Corrected Answer
+        <span
+          id="uploadVoice"
+          onclick="uploadVoice('{{ reply._id }}')"
+          style="display: none"
+          >🔊</span
+        >
+      </h5>
+      <audio id="correctedAudio" controls style="display: none">
+        <source src="" type="audio/mpeg" />
+        이 브라우저는 오디오 태그를 지원하지 않습니다.
+      </audio>
+      <p class="mb-0" id="corrected">{{ reply.corrected }}</p>
     </div>
 
     <div class="mb-4">
@@ -53,7 +65,22 @@
       let isManuallyStopped = true;
       window.onload = () => {
         recorder.init();
+        displayAudio("{{ reply.audioUrl }}");
       };
+      function displayAudio(audioUrl) {
+        const correctedAudio = document.getElementById("correctedAudio");
+        const uploadVoice = document.getElementById("uploadVoice");
+        if (audioUrl) {
+          correctedAudio.src = audioUrl;
+          uploadVoice.style.display = "none";
+          correctedAudio.style.display = "block";
+        } else {
+          correctedAudio.style.display = "none";
+          uploadVoice.style.display = "inline";
+          uploadVoice.style.cursor = "pointer";
+        }
+      }
+
       let recorder = {
         mediaRecorder: {},
         chunks: [],
@@ -96,10 +123,10 @@
           console.log("recorder stopped");
 
           let html = `
-                <div class="card" style="width: 18rem; margin: 10px;">
-                    <div class="card-body">
-                    </div>
-                </div>`;
+                    <div class="card" style="width: 18rem; margin: 10px;">
+                        <div class="card-body">
+                        </div>
+                    </div>`;
           const template = document.createElement("template");
           template.innerHTML = html;
           template.content
@@ -126,6 +153,38 @@
         btnStart.innerText = "🔴 Record";
         isManuallyStopped = true;
         recorder.stop();
+      }
+
+      async function uploadVoice(historyId) {
+        const uploadVoice = document.getElementById("uploadVoice");
+        uploadVoice.innerText = "🫦";
+        uploadVoice.style.disabled = true;
+        const corrected = document.getElementById("corrected").innerText;
+        try {
+          const response = await fetch("/upload-voice", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include", // 세션 쿠키 포함
+            body: JSON.stringify({
+              historyId: historyId,
+              corrected: corrected,
+            }),
+          });
+
+          const resJson = await response.json();
+          if (response.ok) {
+            displayAudio(resJson.audioUrl);
+          } else {
+            alert(`업로드 실패: ${resJson.error}\n상세: ${resJson.detail}`);
+          }
+        } catch (error) {
+          console.error("에러 발생:", error);
+        } finally {
+          uploadVoice.innerText = "🔊";
+          uploadVoice.style.disabled = false;
+        }
       }
 
       function toggleExplanations() {
