@@ -58,6 +58,48 @@
       id="recordArea"
       style="justify-content: center; flex-wrap: wrap"
     ></div>
+
+    <!-- 모달 본문 -->
+    <div
+      class="modal fade"
+      id="similarityModal"
+      tabindex="-1"
+      aria-labelledby="exampleModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <!-- 모달 헤더 -->
+          <div class="modal-header">
+            <h5 class="modal-title" id="modalTitle">Similarity</h5>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+          </div>
+
+          <!-- 모달 바디 -->
+          <div class="modal-body">
+            <div id="modalCorrected" style="margin-bottom: 20px"></div>
+            <div id="modalSpoken"></div>
+          </div>
+
+          <!-- 모달 푸터 -->
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
       const spanResult = document.getElementById("spanResult");
@@ -107,11 +149,15 @@
         },
         addPlayer: async (e) => {
           const clipContainer = document.createElement("article");
-          const clipLabel = document.createElement("p");
           const audio = document.createElement("audio");
+          const scoreImage = document.createElement("img");
+          scoreImage.style.width = "60px";
+          scoreImage.style.cursor = "pointer";
           clipContainer.classList.add("clip");
+          clipContainer.style.display = "flex";
           audio.setAttribute("controls", "");
           audio.style.width = "250px";
+          clipContainer.appendChild(scoreImage);
           clipContainer.appendChild(audio);
           audio.controls = true;
           const blob = new Blob(recorder.chunks, {
@@ -134,9 +180,78 @@
             .appendChild(clipContainer);
           document.querySelector("#recordArea").prepend(template.content);
 
-          await transcribe(blob);
+          const transcribeResult = await transcribe(blob);
+          scoreImage.src = getScoreImage(transcribeResult.similarity);
+
+          scoreImage.onclick = () => {
+            openModalWithContent(
+              document.getElementById("corrected").innerText,
+              transcribeResult
+            );
+          };
         },
       };
+
+      function getScoreImage(score) {
+        if (score >= 0.95) return "/images/Very Good.png";
+        else if (score >= 0.85) return "/images/Good.png";
+        else if (score >= 0.75) return "/images/Okay.png";
+        else if (score >= 0.65) return "/images/Fair.png";
+        else return "/images/Meh.png";
+      }
+
+      function openModalWithContent(correctedAnswer, transcribeResult) {
+        document.getElementById("modalTitle").textContent =
+          "Similarity Result: " +
+          transcribeResult.similarity.toFixed(2) * 100 +
+          "%";
+
+        const originalWords = correctedAnswer
+          .replace(/[^a-zA-Z0-9\s]/g, "")
+          .split(/\s+/)
+          .filter((word) => word.trim() !== "");
+        const spokenWords = transcribeResult.text
+          .replace(/[^a-zA-Z0-9\s]/g, "")
+          .split(/\s+/)
+          .filter((word) => word.trim() !== "");
+
+        // 원래 문장 강조
+        const originalHighlighted =
+          "<strong>Corrected Answer:</strong>" +
+          originalWords
+            .map((word, i) => {
+              if (
+                spokenWords.length + transcribeResult.matchedPosition > i &&
+                i >= transcribeResult.matchedPosition
+              ) {
+                return `<span style="color:green">${word}</span>`;
+              }
+              return word;
+            })
+            .join(" ");
+
+        // 말한 문장 강조
+        const spokenHighlighted =
+          "<strong>Spoken Answer:</strong>" +
+          spokenWords
+            .map((word, i) => {
+              if (transcribeResult.changedIndices.includes(i)) {
+                return `<span style="color:red">${word}</span>`;
+              } else {
+                return `<span style="color:green">${word}</span>`;
+              }
+            })
+            .join(" ");
+
+        document.getElementById("modalCorrected").innerHTML =
+          originalHighlighted;
+        document.getElementById("modalSpoken").innerHTML = spokenHighlighted;
+
+        const modal = new bootstrap.Modal(
+          document.getElementById("similarityModal")
+        );
+        modal.show();
+      }
 
       btnStart.onclick = () => {
         if (isManuallyStopped) record();
@@ -208,41 +323,72 @@
             body: formData,
           });
           const result = await response.json();
-          alert(
-            result.text +
-              "\n" +
-              getLevenshteinSimilarity(result.text, "{{ reply.corrected }}")
-          );
+          return {
+            text: result.text,
+            ...getChangedWordIndicesWithScore(
+              result.text,
+              "{{ reply.corrected }}"
+            ),
+          };
         } catch (err) {
           alert("⚠️ 오류 발생: " + err.message);
+          return {
+            text: "Error",
+            similarity: null,
+          };
         }
       }
 
-      function getLevenshteinSimilarity(a, b) {
-        a = a.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
-        b = b.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+      function getChangedWordIndicesWithScore(a, b) {
+        const decodeHtml = (html) =>
+          new DOMParser().parseFromString(html, "text/html").body.textContent ||
+          "";
 
-        const m = a.length;
-        const n = b.length;
-        const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+        const clean = (text) =>
+          decodeHtml(text)
+            .toLowerCase()
+            .replace(/[^a-zA-Z0-9\s]/g, " ") // 어포스트로피, 쉼표 등 제거
+            .split(/\s+/)
+            .filter((word) => word.trim() !== ""); // 빈 문자열 제거
 
-        for (let i = 0; i <= m; i++) dp[i][0] = i;
-        for (let j = 0; j <= n; j++) dp[0][j] = j;
+        const aWords = clean(a);
+        let bWords = clean(b);
+        const aLen = aWords.length;
+        let bLen = bWords.length;
 
-        for (let i = 1; i <= m; i++) {
-          for (let j = 1; j <= n; j++) {
-            const cost =
-              a[i - 1].toLowerCase() === b[j - 1].toLowerCase() ? 0 : 1;
-            dp[i][j] = Math.min(
-              dp[i - 1][j] + 1, // deletion
-              dp[i][j - 1] + 1, // insertion
-              dp[i - 1][j - 1] + cost // substitution
-            );
+        if (aLen > bLen) {
+          bWords = bWords.concat(Array(aLen - bLen).fill(""));
+          bLen = bWords.length;
+        }
+
+        let bestSimilarity = -1;
+        let bestIndices = [];
+        let bestStartIndex = -1;
+
+        for (let start = 0; start <= bLen - aLen; start++) {
+          const bSlice = bWords.slice(start, start + aLen);
+          const changedIndices = [];
+
+          for (let i = 0; i < aLen; i++) {
+            if (aWords[i] !== bSlice[i]) {
+              changedIndices.push(i);
+            }
+          }
+
+          const similarity = 1 - changedIndices.length / aLen;
+
+          if (similarity > bestSimilarity) {
+            bestSimilarity = similarity;
+            bestIndices = changedIndices;
+            bestStartIndex = start;
           }
         }
-        const distance = dp[m][n];
-        const similarity = 1 - distance / Math.max(m, n);
-        return similarity;
+
+        return {
+          changedIndices: bestIndices,
+          similarity: bestSimilarity,
+          matchedPosition: bestStartIndex,
+        };
       }
     </script>
   </body>

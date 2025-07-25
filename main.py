@@ -304,7 +304,7 @@ async def upload_voice(request: Request):
 
     if response.status_code in [200, 201]:
         audioUrl = f"https://raw.githubusercontent.com/{os.getenv("GITHUB_REPO")}/{os.getenv("GITHUB_BRANCH")}/{filename}"
-        await collection_history.update_one({"_id": historyId}, {"$set": {"audioUrl": audioUrl}})
+        dbUpdateResult = await collection_history.update_one({"_id": ObjectId(historyId)}, {"$set": {"audioUrl": audioUrl}})
         return JSONResponse(content={"message": "File uploaded", "audioUrl": audioUrl})
     else:
         return JSONResponse(
