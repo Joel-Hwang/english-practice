@@ -1,10 +1,10 @@
 import certifi
-from fastapi import FastAPI, Request, Form, HTTPException, Query
+from fastapi import FastAPI, Request, Form, HTTPException, Query, File, UploadFile
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
-import requests
+from faster_whisper import WhisperModel
 from pymongo import ASCENDING, DESCENDING
 import re
 from typing import List
@@ -22,8 +22,11 @@ import bcrypt
 import os
 import openai
 from openai import OpenAI
+import tempfile
+
 import sys
 sys.stdout.reconfigure(encoding='utf-8')
+os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -214,6 +217,23 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
         return {"reply": formatted_reply}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+model = WhisperModel("base", device="cpu", compute_type="int8")
+@app.post("/transcribe")
+async def transcribe_audio(file: UploadFile = File(...)):
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
+        content = await file.read()
+        temp_file.write(content)
+        temp_path = temp_file.name
+
+    try:
+        segments, info = model.transcribe(temp_path)
+        text = " ".join([segment.text for segment in segments])
+        return JSONResponse(content={"text": text})
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
 
 async def fix_json_string(json_str: str) -> str:
     client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))

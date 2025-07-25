@@ -26,8 +26,12 @@
     </div>
 
     <div class="mb-4">
-      <h5>Corrections</h5>
-      <ul class="list-group list-group-flush" id="explanations">
+      <h5 id="h5corrections" onclick="toggleExplanations()">Corrections 🔽</h5>
+      <ul
+        class="list-group list-group-flush"
+        id="explanations"
+        style="display: none"
+      >
         {% for explanation in reply.explanations %}
         <li class="list-group-item">{{ explanation }}</li>
         {% endfor %}
@@ -57,9 +61,6 @@
           const audioCtx = new (window.AudioContext ||
             window.webkitAudioContext)(); // 오디오 컨텍스트 정의
           const analyser = audioCtx.createAnalyser();
-          //const distortion = audioCtx.createWaveShaper()
-          //const gainNode = audioCtx.createGain()
-          //const biquadFilter = audioCtx.createBiquadFilter()
           navigator.mediaDevices
             .getUserMedia({ audio: true })
             .then((stream) => {
@@ -77,8 +78,7 @@
         stop: () => {
           recorder.mediaRecorder.stop();
         },
-        addPlayer: (e) => {
-          console.log("data available after MediaRecorder.stop() called.");
+        addPlayer: async (e) => {
           const clipContainer = document.createElement("article");
           const clipLabel = document.createElement("p");
           const audio = document.createElement("audio");
@@ -106,6 +106,8 @@
             .querySelector(".card-body")
             .appendChild(clipContainer);
           document.querySelector("#recordArea").prepend(template.content);
+
+          await transcribe(blob);
         },
       };
 
@@ -124,6 +126,64 @@
         btnStart.innerText = "🔴 Record";
         isManuallyStopped = true;
         recorder.stop();
+      }
+
+      function toggleExplanations() {
+        const explanations = document.getElementById("explanations");
+        const h5corrections = document.getElementById("h5corrections");
+        if (explanations.style.display === "none") {
+          explanations.style.display = "block";
+          h5corrections.innerText = "Corrections 🔼";
+        } else {
+          explanations.style.display = "none";
+          h5corrections.innerText = "Corrections 🔽";
+        }
+      }
+
+      async function transcribe(blob) {
+        const formData = new FormData();
+        formData.append("file", blob, "audio.ogg");
+        try {
+          const response = await fetch("/transcribe", {
+            method: "POST",
+            body: formData,
+          });
+          const result = await response.json();
+          alert(
+            result.text +
+              "\n" +
+              getLevenshteinSimilarity(result.text, "{{ reply.corrected }}")
+          );
+        } catch (err) {
+          alert("⚠️ 오류 발생: " + err.message);
+        }
+      }
+
+      function getLevenshteinSimilarity(a, b) {
+        a = a.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+        b = b.toLowerCase().replace(/[^a-zA-Z0-9]/g, "");
+
+        const m = a.length;
+        const n = b.length;
+        const dp = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+
+        for (let i = 0; i <= m; i++) dp[i][0] = i;
+        for (let j = 0; j <= n; j++) dp[0][j] = j;
+
+        for (let i = 1; i <= m; i++) {
+          for (let j = 1; j <= n; j++) {
+            const cost =
+              a[i - 1].toLowerCase() === b[j - 1].toLowerCase() ? 0 : 1;
+            dp[i][j] = Math.min(
+              dp[i - 1][j] + 1, // deletion
+              dp[i][j - 1] + 1, // insertion
+              dp[i - 1][j - 1] + cost // substitution
+            );
+          }
+        }
+        const distance = dp[m][n];
+        const similarity = 1 - distance / Math.max(m, n);
+        return similarity;
       }
     </script>
   </body>
