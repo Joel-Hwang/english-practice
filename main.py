@@ -226,15 +226,16 @@ async def transcribe_audio(file: UploadFile = File(...)):
             content = await file.read()
             temp_file.write(content)
             temp_path = temp_file.name
-        openai.api_key = os.getenv("OPENAPI_API_KEY")
+        client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
         with open(temp_path, "rb") as audio_file:
-            transcript = openai.Audio.transcribe(
+            response = client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file,
-                response_format="json"
+                response_format="json",
+                language="en"
             )
 
-        return JSONResponse(content={"text": transcript["text"]})
+        return JSONResponse(content={"text": response.text})
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
