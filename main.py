@@ -219,20 +219,44 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-model = WhisperModel("base", device="cpu", compute_type="int8")
 @app.post("/transcribe")
 async def transcribe_audio(file: UploadFile = File(...)):
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
-        content = await file.read()
-        temp_file.write(content)
-        temp_path = temp_file.name
-
     try:
-        segments, info = model.transcribe(temp_path)
-        text = " ".join([segment.text for segment in segments])
-        return JSONResponse(content={"text": text})
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_path = temp_file.name
+        openai.api_key = os.getenv("OPENAPI_API_KEY")
+        with open(temp_path, "rb") as audio_file:
+            transcript = openai.Audio.transcribe(
+                model="whisper-1",
+                file=audio_file,
+                response_format="json"
+            )
+
+        return JSONResponse(content={"text": transcript["text"]})
+
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path) 
+
+#model = WhisperModel("base", device="cpu", compute_type="int8")
+#@app.post("/transcribe")
+#async def transcribe_audio(file: UploadFile = File(...)):
+#    with tempfile.NamedTemporaryFile(delete=False, suffix=".ogg") as temp_file:
+#        content = await file.read()
+#        temp_file.write(content)
+#        temp_path = temp_file.name
+#
+#    try:
+#        segments, info = model.transcribe(temp_path)
+#        text = " ".join([segment.text for segment in segments])
+#        return JSONResponse(content={"text": text})
+#    except Exception as e:
+#        return JSONResponse(status_code=500, content={"error": str(e)})
 
 
 async def fix_json_string(json_str: str) -> str:
