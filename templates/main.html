@@ -101,54 +101,64 @@
       let gQuestions = [];
       let gCurrentQuestionIndex = 0;
       let gCurrentPage = 1;
-      let recognition = null;
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-      let isManuallyStopped = true;
 
-      if (!SpeechRecognition) {
-        alert("Your browser does not support Speech Recognition.");
-      } else {
-        recognition = new SpeechRecognition();
-
-        // Set language to English (US)
-        recognition.lang = "en-US";
-        recognition.interimResults = false; // No intermediate results
-        recognition.maxAlternatives = 1;
-        recognition.continuous = true;
-
-        btnStart.onclick = () => {
-          if (isManuallyStopped) record();
-          else cancelRecord();
-        };
-
-        recognition.onresult = (event) => {
-          let transcript = "";
-
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const res = event.results[i];
-            transcript = res[0].transcript;
-
-            if (res.isFinal) txtSentences.value += transcript + "\n";
-          }
-        };
-
-        recognition.onerror = (event) => {
-          document.getElementById(
-            "corrected"
-          ).value = `❌ Error: ${event.error}`;
-        };
-
-        recognition.onend = () => {
-          if (!isManuallyStopped) {
-            recognition.start(); // 자동 재시작
-          }
-        };
-      }
       window.onload = async () => {
+        recorder.init();
         await getQuestions();
         await getHistories(1, displayCards);
         displayQuestion();
+
+        btnStart.onclick = async () => {
+          if (btnStart.innerText === "🎤") {
+            record();
+            btnStart.innerText = "🚫";
+          } else {
+            btnStart.disabled = true;
+            btnStart.innerText = "Processing...";
+            await cancelRecord();
+            btnStart.innerText = "🎤";
+            btnStart.disabled = false;
+          }
+        };
+      };
+
+      let recorder = {
+        mediaRecorder: null,
+        chunks: [],
+        init: async () => {
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          recorder.mediaRecorder = new MediaRecorder(stream);
+
+          recorder.mediaRecorder.ondataavailable = (e) => {
+            recorder.chunks.push(e.data);
+          };
+        },
+
+        start: () => {
+          if (!recorder.mediaRecorder) {
+            console.error("MediaRecorder not initialized");
+            return;
+          }
+
+          recorder.chunks = []; // 이전 녹음 데이터 초기화
+          recorder.mediaRecorder.start();
+        },
+
+        stop: () => {
+          return new Promise((resolve) => {
+            recorder.mediaRecorder.onstop = async () => {
+              const blob = new Blob(recorder.chunks, {
+                type: "audio/ogg; codecs=opus",
+              });
+              recorder.chunks = [];
+              await transcribe(blob);
+              resolve();
+            };
+            recorder.mediaRecorder.stop();
+          });
+        },
       };
 
       window.addEventListener("scroll", async () => {
@@ -204,15 +214,11 @@
       }
 
       function record() {
-        isManuallyStopped = false;
-        recognition.start();
-        btnStart.innerText = "🚫";
+        recorder.start();
       }
 
-      function cancelRecord() {
-        btnStart.innerText = "🎤";
-        isManuallyStopped = true;
-        recognition.stop();
+      async function cancelRecord() {
+        await recorder.stop();
       }
 
       function resetComponents() {
@@ -253,6 +259,21 @@
           .catch((error) => {
             console.error("에러 발생:", error);
           });
+      }
+
+      async function transcribe(blob) {
+        const formData = new FormData();
+        formData.append("file", blob, "audio.ogg");
+        try {
+          const response = await fetch("/transcribe", {
+            method: "POST",
+            body: formData,
+          });
+          const result = await response.json();
+          txtSentences.value = txtSentences.value + result.text + "\n";
+        } catch (err) {
+          alert("⚠️ 오류 발생: " + err.message);
+        }
       }
 
       function handleSubmit() {
