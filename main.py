@@ -286,10 +286,10 @@ async def upload_voice(request: Request):
     encoded_content = base64.b64encode(speech_response.content).decode("utf-8")
 
     filename = f"uploads/{historyId}.mp3"
-    api_url = f"https://api.github.com/repos/{os.getenv("GITHUB_REPO")}/contents/{filename}"
+    api_url = f"https://api.github.com/repos/{os.getenv('GITHUB_REPO')}/contents/{filename}"
 
     headers = {
-        "Authorization": f"Bearer {os.getenv("GITHUB_TOKEN")}",
+        "Authorization": f"Bearer {os.getenv('GITHUB_TOKEN')}",
         "Accept": "application/vnd.github+json",
     }
 
@@ -303,7 +303,7 @@ async def upload_voice(request: Request):
         response = await client.put(api_url, headers=headers, json=data)
 
     if response.status_code in [200, 201]:
-        audioUrl = f"https://raw.githubusercontent.com/{os.getenv("GITHUB_REPO")}/{os.getenv("GITHUB_BRANCH")}/{filename}"
+        audioUrl = f"https://raw.githubusercontent.com/{os.getenv('GITHUB_REPO')}/{os.getenv('GITHUB_BRANCH')}/{filename}"
         dbUpdateResult = await collection_history.update_one({"_id": ObjectId(historyId)}, {"$set": {"audioUrl": audioUrl}})
         return JSONResponse(content={"message": "File uploaded", "audioUrl": audioUrl})
     else:
