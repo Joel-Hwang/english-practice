@@ -206,18 +206,19 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
 
     try:
         reply = response.choices[0].message.content
-        results = extract_clean_json_strings(reply.strip())
+        results = await extract_clean_json_strings(reply.strip())
         formatted_reply = results[0].replace("\n", "")
         if not is_valid_json(formatted_reply):
             formatted_reply = await fix_json_string(formatted_reply)
         
         await collection_history.insert_one({
-            "user": user, 
-            "reply":formatted_reply, 
+            "user": user,
+            "reply": formatted_reply,
             "questionIndex": chat.questionIndex,
-            "question": chat.question, 
-            "answer":chat.sentence, 
-            "createdAt": datetime.now(timezone.utc)})
+            "question": chat.question,
+            "answer": chat.sentence,
+            "createdAt": datetime.now(timezone.utc)
+        })
         return {"reply": formatted_reply}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
