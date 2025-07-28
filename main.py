@@ -60,9 +60,9 @@ class ChatResponse(BaseModel):
     reply: str
 
 prompt = """Given the sentence below, please do the following:
-1. Correct grammar errors and provide a more natural, colloquial version of the sentence.
+1. Correct grammar errors and provide a more natural sentence. If the original sentence is fluent enough, keep it as is.
 2. Score the original sentence on Conversational fluency (Very Good, Good, Okay, Fair, Meh)
-3. 어떤 부분을 왜 교정했는지 한국어로 설명.
+3. 어떤 부분을 왜 교정했는지 한국어로 설명. If the original sentence is fluent enough, provide an empty array [].
 Return your answer in **valid JSON** format as follows:
 {{
   "corrected": "...",
