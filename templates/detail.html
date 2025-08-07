@@ -184,34 +184,31 @@
           scoreImage.src = getScoreImage(transcribeResult.similarity);
 
           scoreImage.onclick = () => {
-            openModalWithContent(
-              document.getElementById("corrected").innerText,
-              transcribeResult
-            );
+            openModalWithContent(transcribeResult);
           };
         },
       };
 
       function getScoreImage(score) {
         if (score >= 0.95) return "/images/Very Good.png";
-        else if (score >= 0.85) return "/images/Good.png";
-        else if (score >= 0.75) return "/images/Okay.png";
-        else if (score >= 0.65) return "/images/Fair.png";
+        else if (score >= 0.8) return "/images/Good.png";
+        else if (score >= 0.65) return "/images/Okay.png";
+        else if (score >= 0.5) return "/images/Fair.png";
         else return "/images/Meh.png";
       }
 
-      function openModalWithContent(correctedAnswer, transcribeResult) {
+      function openModalWithContent(transcribeResult) {
         document.getElementById("modalTitle").textContent =
           "Similarity Result: " +
           transcribeResult.similarity.toFixed(2) * 100 +
           "%";
 
-        const originalWords = correctedAnswer
-          .replace(/[^a-zA-Z0-9\s]/g, "")
+        const originalWords = "{{ reply.corrected }}"
+          // .replace(/[^a-zA-Z0-9\s]/g, "")
           .split(/\s+/)
           .filter((word) => word.trim() !== "");
         const spokenWords = transcribeResult.text
-          .replace(/[^a-zA-Z0-9\s]/g, "")
+          //.replace(/[^a-zA-Z0-9\s]/g, "")
           .split(/\s+/)
           .filter((word) => word.trim() !== "");
 
@@ -339,18 +336,16 @@
         }
       }
 
+      function generousCompare(i, aWords, bSlice) {
+        const generousLevel = 2;
+        for (let idx = i - generousLevel; idx <= i + generousLevel; idx++) {
+          if (idx < 0 || idx >= bSlice.length) continue;
+          if (aWords[i] === bSlice[idx]) return true;
+        }
+        return false;
+      }
+
       function getChangedWordIndicesWithScore(a, b) {
-        const decodeHtml = (html) =>
-          new DOMParser().parseFromString(html, "text/html").body.textContent ||
-          "";
-
-        const clean = (text) =>
-          decodeHtml(text)
-            .toLowerCase()
-            .replace(/[^a-zA-Z0-9\s]/g, " ") // 어포스트로피, 쉼표 등 제거
-            .split(/\s+/)
-            .filter((word) => word.trim() !== ""); // 빈 문자열 제거
-
         const aWords = clean(a);
         let bWords = clean(b);
         const aLen = aWords.length;
@@ -366,21 +361,21 @@
         let bestStartIndex = -1;
 
         for (let start = 0; start <= bLen - aLen; start++) {
-          const bSlice = bWords.slice(start, start + aLen);
+          const bSlice = bWords.slice(start, start + aLen + 5);
           const changedIndices = [];
-
           for (let i = 0; i < aLen; i++) {
-            if (aWords[i] !== bSlice[i]) {
+            if (generousCompare(i, aWords, bSlice) == false) {
               changedIndices.push(i);
             }
           }
 
           const similarity = 1 - changedIndices.length / aLen;
 
-          if (similarity > bestSimilarity) {
+          if (similarity >= bestSimilarity) {
             bestSimilarity = similarity;
             bestIndices = changedIndices;
             bestStartIndex = start;
+            console.log(aWords, bWords, bSlice, bestStartIndex, changedIndices);
           }
         }
 
@@ -389,6 +384,69 @@
           similarity: bestSimilarity,
           matchedPosition: bestStartIndex,
         };
+      }
+
+      function clean(text) {
+        const decodeHtml = (html) =>
+          new DOMParser().parseFromString(html, "text/html").body.textContent ||
+          "";
+
+        const contractionsMap = {
+          "i'm": "i am",
+          "you're": "you are",
+          "he's": "he is",
+          "she's": "she is",
+          "it's": "it is",
+          "we're": "we are",
+          "they're": "they are",
+          "i've": "i have",
+          "you've": "you have",
+          "they've": "they have",
+          "we've": "we have",
+          "i'd": "i would",
+          "you'd": "you would",
+          "he'd": "he would",
+          "she'd": "she would",
+          "they'd": "they would",
+          "we'd": "we would",
+          "i'll": "i will",
+          "you'll": "you will",
+          "he'll": "he will",
+          "she'll": "she will",
+          "they'll": "they will",
+          "we'll": "we will",
+          "can't": "cannot",
+          "won't": "will not",
+          "isn't": "is not",
+          "aren't": "are not",
+          "wasn't": "was not",
+          "weren't": "were not",
+          "don't": "do not",
+          "doesn't": "does not",
+          "didn't": "did not",
+          "haven't": "have not",
+          "hasn't": "has not",
+          "hadn't": "had not",
+          "wouldn't": "would not",
+          "shouldn't": "should not",
+          "mustn't": "must not",
+          "mightn't": "might not",
+          "needn't": "need not",
+        };
+
+        let decoded = decodeHtml(text).toLowerCase();
+
+        // 축약형 치환
+        /* Object.entries(contractionsMap).forEach(([contraction, full]) => {
+          const regex = new RegExp(`\\b${full}\\b`, "gi");
+          decoded = decoded.replace(regex, contraction);
+        });*/
+
+        // 특수문자 제거 및 단어 분리
+        return decoded
+          .replace(/[^a-zA-Z0-9\s]/g, "")
+          .split(/\s+/)
+          .filter((word) => word.trim() !== "");
       }
     </script>
   </body>

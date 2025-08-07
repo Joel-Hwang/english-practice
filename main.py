@@ -9,7 +9,7 @@ from pymongo import ASCENDING, DESCENDING
 import re
 from typing import List
 from datetime import datetime, timezone
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from starlette.middleware.sessions import SessionMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from bson import ObjectId
@@ -70,6 +70,10 @@ Return your answer in **valid JSON** format as follows:
   "conversational_fluency_score": "Very Good or Good or Okay or Fair or Meh"
 }}
 Sentence: {0}"""
+
+@app.get("/favicon.ico")
+def favicon():
+    return FileResponse(os.path.join("images", "favicon.ico"))
 
 @app.get("/", response_class=HTMLResponse)
 async def get_login(request: Request):
