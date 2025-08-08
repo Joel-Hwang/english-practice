@@ -17,12 +17,13 @@
     </div>
 
     <div class="mb-4">
-      <h5>Your Answer</h5>
-      <p class="mb-0">{{ reply.answer }}</p>
+      <h5>{{ "Your Answer" if reply.me == reply.user else "" }}</h5>
+      <p class="mb-0">{{ reply.answer if reply.me == reply.user else "" }}</p>
     </div>
     <div class="mb-4">
       <h5>
-        Corrected Answer
+        {{ "Corrected" if reply.me == reply.user else reply.user + "'s" }}
+        Answer
         <span
           id="uploadVoice"
           onclick="uploadVoice('{{ reply._id }}')"
@@ -30,6 +31,7 @@
           >🔊</span
         >
       </h5>
+      <div id="others"></div>
       <audio id="correctedAudio" controls style="display: none">
         <source src="" type="audio/mpeg" />
         이 브라우저는 오디오 태그를 지원하지 않습니다.
@@ -38,7 +40,9 @@
     </div>
 
     <div class="mb-4">
-      <h5 id="h5corrections" onclick="toggleExplanations()">Corrections 🔽</h5>
+      <h5 id="h5corrections" onclick="toggleExplanations()">
+        {{ "Corrections 🔽" if reply.me == reply.user else "" }}
+      </h5>
       <ul
         class="list-group list-group-flush"
         id="explanations"
@@ -108,6 +112,7 @@
       window.onload = () => {
         recorder.init();
         displayAudio("{{ reply.audioUrl }}");
+        getOthers("{{ reply._id }}");
       };
       function displayAudio(audioUrl) {
         const correctedAudio = document.getElementById("correctedAudio");
@@ -267,6 +272,27 @@
         recorder.stop();
       }
 
+      async function getOthers(historyId) {
+        const others = document.getElementById("others");
+        await fetch(`/others/${historyId}`, { method: "GET" })
+          .then((response) => response.json())
+          .then((data) => {
+            data.forEach((item) => {
+              const otherUser = document.createElement("span");
+              otherUser.innerText = item.user;
+              otherUser.style.cursor = "pointer";
+              otherUser.style.color = "blue";
+              otherUser.style.margin = "10px";
+              otherUser.addEventListener("click", () => {
+                window.location.href = `/detail/${item._id}`;
+              });
+              others.appendChild(otherUser);
+            });
+          })
+          .catch((error) => {
+            console.error("Error fetching others:", error);
+          });
+      }
       async function uploadVoice(historyId) {
         const uploadVoice = document.getElementById("uploadVoice");
         uploadVoice.innerText = "🫦 downloading...";

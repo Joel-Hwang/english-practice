@@ -162,13 +162,37 @@ async def post_questions(request: Request):
 @app.get("/detail/{id}", response_class=HTMLResponse)
 async def get_detail(id: str, request: Request):
     user = request.session.get("user")
-    history = await collection_history.find_one({"user": user, "_id": ObjectId(id)})
+    history = await collection_history.find_one({"_id": ObjectId(id)})
     reply = json.loads(history['reply'])
     reply['question'] = history['question']
+    reply['me'] = user
+    reply['user'] = history['user']
     reply['answer'] = history['answer']
     reply['_id'] = str(history['_id'])
     reply['audioUrl'] = str(history['audioUrl']) if 'audioUrl' in history else ''
     return templates.TemplateResponse("detail.html", {"request": request, "reply": reply})
+
+@app.get("/others/{id}", response_class=HTMLResponse)
+async def get_others(id: str, request: Request):
+    user = request.session.get("user")
+    if not user:
+        return RedirectResponse(url="/", status_code=302)
+
+    history = await collection_history.find_one({"user": user, "_id": ObjectId(id)})
+    question =  history['question']
+    questionIndex = history['questionIndex']
+
+
+    cursor = collection_history.find({"question": question, "questionIndex": questionIndex, "_id":{"$ne": ObjectId(id)}})
+
+    results = []
+    async for doc in cursor:
+        row = {}
+        row["_id"] = str(doc["_id"])
+        row["user"] = doc["user"]
+        results.append(row)
+    return JSONResponse(content=results) 
+
 
 @app.get("/histories", response_class=HTMLResponse)
 async def get_histories(request: Request, page: int = Query(1, ge=1),
