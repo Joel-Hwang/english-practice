@@ -125,14 +125,14 @@ async def get_questions(request: Request):
     user = request.session.get("user")
     if not user:
         return RedirectResponse(url="/", status_code=302)
-    return templates.TemplateResponse("main.html", {"request": request})
+    return templates.TemplateResponse("main.html", {"request": request, "user": user})
 
 @app.get("/question", response_class=HTMLResponse)
 async def get_questions(request: Request):
     user = request.session.get("user")
-    if user != 'Joel':
-        return RedirectResponse(url="/", status_code=302)
-    return templates.TemplateResponse("question.html", {"request": request})
+    if user == 'Joel' or user == 'Kim':
+        return templates.TemplateResponse("question.html", {"request": request})
+    return RedirectResponse(url="/", status_code=302)
 
 @app.get("/questions", response_class=HTMLResponse)
 async def get_questions():
@@ -225,7 +225,7 @@ async def chat_with_lmstudio(request: Request, chat: ChatRequest):
     
     client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
     response = client.chat.completions.create(
-        model="gpt-4.1-mini",
+        model="gpt-5-mini",
         messages=[
             {"role": "system", "content": "You are an expert in English grammar and conversational fluency."},
             {"role": "user", "content": prompt.format(chat.sentence)}
@@ -344,7 +344,7 @@ async def upload_voice(request: Request):
 async def fix_json_string(json_str: str) -> str:
     client = OpenAI(api_key=os.getenv("OPENAPI_API_KEY"))
     response = client.chat.completions.create(
-        model="gpt-4.1-nano",
+        model="gpt-5-mini",
         messages=[
             {"role": "system", "content": "You are an expert in json formatting."},
             {"role": "user", "content": "Fix the following string to **valid JSON format** and return the JSON: " + json_str}

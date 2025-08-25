@@ -25,6 +25,20 @@
     </style>
   </head>
   <body class="bg-light">
+    {% if user in ["Joel", "Kim"] %}
+    <a
+      style="
+        cursor: pointer;
+        color: blue;
+        text-decoration: underline;
+        display: block;
+        text-align: center;
+      "
+      onclick="window.location.href='/question'"
+    >
+      Register questions
+    </a>
+    {% endif %}
     <div class="container mt-5" style="max-width: 1000px" id="practice">
       <div class="d-flex justify-content-between align-items-center mb-2">
         <h5 class="fw-bold mb-0">English Practice</h5>
