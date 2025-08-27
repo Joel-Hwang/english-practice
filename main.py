@@ -149,7 +149,7 @@ async def get_users():
 @app.post("/questions", response_class=HTMLResponse)
 async def post_questions(request: Request):
     user = request.session.get("user")
-    if user != 'Joel':
+    if user != 'Joel' and user != 'Kim':
         return RedirectResponse(url="/", status_code=302)
     data = await request.json()
     questions = data.get("questions", [])
