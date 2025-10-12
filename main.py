@@ -11,12 +11,12 @@ from typing import List
 from datetime import datetime, timezone
 from fastapi.responses import JSONResponse, FileResponse
 from starlette.middleware.sessions import SessionMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
+
 from bson import ObjectId
 import json
 import logging
 from typing import List
-from pymongo.errors import ServerSelectionTimeoutError
+
 from dotenv import load_dotenv
 import bcrypt
 import os
@@ -26,30 +26,26 @@ import tempfile
 import base64
 import httpx
 import sys
+from mongo import db
 sys.stdout.reconfigure(encoding='utf-8')
 os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+from controller import userController
+
 app = FastAPI()
+app.include_router(userController.router)
+
+
 app.add_middleware(SessionMiddleware, secret_key="your-very-secret-key")
 app.mount("/images", StaticFiles(directory="images"), name="images")
 templates = Jinja2Templates(directory="templates")
 
-try:
-    client = AsyncIOMotorClient(os.getenv("MONGO_URI"), serverSelectionTimeoutMS=50000)
-
-    db = client["englishpractice"]
-    collection_history = db["histories"]
-    collection_question = db["questions"]
-    collection_user = db["user"]
-    # 연결 확인
-    client.admin.command("ping")
-    logger.info("MongoDB connected successfully.")
-except ServerSelectionTimeoutError:
-    logger.exception("MongoDB connection failed.")
-    raise RuntimeError("Could not connect to MongoDB. Please check your URI and network.")
+collection_history = db["histories"]
+collection_question = db["questions"]
+collection_user = db["user"]
 
 class ChatRequest(BaseModel):
     sentence: str

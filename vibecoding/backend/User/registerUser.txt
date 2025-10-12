@@ -1,0 +1,50 @@
+Write Backend Code about registering memebers by using MVC pattern
+
+a) Model
+Model: model/user.py
+Model Name: User
+Model attributes
+- id: str
+- password: str
+- gender: str (default: female)
+- status: str (default: inactive)
+- group: str
+- createdAt: datetime
+
+Model Name: UserCreate
+Model attributes
+- id: str
+- password: str
+
+b) Repository
+1. Repository: repository/userRepository.py
+2. Method: insertUser(user: User)
+2-1. Description: 
+- insert User data to db["user"] 
+     
+3. Method: findUserById(user_id: str)
+3-1. Description
+- find user and return in db["user"]
+
+c) Service
+1. Service: service/userService.py
+2. Method: registerUser
+3. Description: 
+- Save the user information by calling userRepository. 
+- If id or password is empty, the method will throw the HTTPException with proper detail message (status_code=422, detail=message);
+- If the userId is duplicated, the method will throw the HTTPException with proper detail message (status_code=400, detail=message)
+- Encrype the password with bcrypt.hashpw
+4. return: void
+5. Test Cases (test/test_userService.py)
+- Successful registration.
+- Registration with duplicate email
+- Registration with missing reuqired fileds
+
+d) Controller
+1. Controller: controller/userController.py
+2. Method: registerUser
+3. EndPoint: /user/register, POST
+4. Description: 
+- Do not try except. We have global Exception Handler.
+- call service method with the user information. Use "UserCreate" model.
+6. response: if the serivce doesn't throw any exceptions, the controller will respond with proper message {message: message}

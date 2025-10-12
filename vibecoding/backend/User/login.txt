@@ -1,0 +1,47 @@
+Write Backend Code about login by using MVC pattern
+
+a) Model
+Model: model/user.py
+Model Name: UserLogin
+Model attributes
+- id: str
+- gender: str (default: female)
+- status: str (default: inactive)
+- createdAt: datetime
+
+Model Name: UserCreate
+Model attributes
+- id: str
+- password: str
+
+b) Repository
+1. Repository: repository/userRepository.py
+2. Method: findUserById(user_id: str)
+2-1. Description
+- find user and return in db["user"]
+
+c) Service
+1. Service: service/userService.py
+2. Method: login
+3. Description: 
+- retrieve userId from the userRepository.
+- If there isn't matched userId, it will throw a HTTPException with a proper message (status_code=400, detail=message)
+- If the user's status is 'inactive', it will throw a HTTPException with a proper message (status_code=400, detail=message) 
+- Validate the password with bcrypt.checkpw
+- If it doesn't match, it will throw a HTTPException with a proper message (status_code=400, detail=message)
+4. return: it will return the UserLogin model.
+5. Test Cases (test/test_userService.py)
+- Successful login.
+- Login with invalid email
+- Login with wrong password
+- Login with missing reuqired fileds
+
+d) Controller
+1. Controller: controller/userController.py
+2. Method: login
+3. EndPoint: /login, POST
+4. Description: 
+- call service method with the user information. Use "UserCreate" model.
+- If the service method return UserLogin, store the object in the session.
+- Do not try except. We have global Exception Handler.
+6. response: if the serivce doesn't throw any exceptions, the controller will respond the UserLogin from the service.  
