@@ -9,6 +9,7 @@ Model attributes
 - gender: str (default: female)
 - status: str (default: inactive)
 - group: str
+- level: int
 - createdAt: datetime
 
 Model Name: UserCreate

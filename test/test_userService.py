@@ -21,7 +21,7 @@ class TestUserService(unittest.IsolatedAsyncioTestCase):
 
     @patch('repository.userRepository.findUserById', new_callable=AsyncMock)
     async def test_registerUser_duplicate_id(self, mock_findUserById):
-        mock_findUserById.return_value = {"id": "test@example.com", "password": "password123"}
+        mock_findUserById.return_value = {"id": "test@example.com", "password": "password123", "group": "default"}
         
         user_create = UserCreate(id='test@example.com', password='password123')
         with self.assertRaises(HTTPException) as cm:
@@ -50,6 +50,7 @@ class TestUserService(unittest.IsolatedAsyncioTestCase):
             "password": "hashed_password",
             "gender": "female",
             "status": "active",
+            "group": "default",
             "createdAt": datetime.now()
         }
         
@@ -77,6 +78,7 @@ class TestUserService(unittest.IsolatedAsyncioTestCase):
             "password": "hashed_password",
             "gender": "female",
             "status": "active",
+            "group": "default",
             "createdAt": datetime.now()
         }
         
@@ -100,6 +102,7 @@ class TestUserService(unittest.IsolatedAsyncioTestCase):
             "password": "hashed_password",
             "gender": "female",
             "status": "inactive",
+            "group": "default",
             "createdAt": datetime.now()
         }
         
@@ -120,6 +123,7 @@ class TestUserService(unittest.IsolatedAsyncioTestCase):
             "password": "old_hashed_password",
             "gender": "female",
             "status": "active",
+            "group": "default",
             "createdAt": datetime.now()
         }
         mock_checkpw.return_value = True

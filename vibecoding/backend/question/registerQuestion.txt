@@ -1,0 +1,35 @@
+Write Backend Code about submitting quizez by using MVC pattern
+
+a) Model
+File: model/question.py
+Model Name: Question
+Model attributes
+- group: str
+- questions: str[]
+- createdAt: datetime (default: datetime.now(timezone.utc))
+
+
+b) Repository
+1. File: repository/questionRepository.py
+2. Method: registerQuestion(param: Question)
+2-1. Description
+- register param in db["question"]
+
+c) Service
+1. Service: service/questionService.py
+2. Method: registerQuestion(param: Question)
+3. Description: 
+- if the logged in user is not 'Joel', it will throw a HTTPException with a proper message (status_code=302, detail=message)
+- call registerQuestion in questionRepository.py
+4. return: void.
+5. Test Cases (test/test_questionService.py)
+- Successful registering questions.
+
+d) Controller
+1. Controller: controller/questionController.py
+2. Method: registerQuestion(param: Question)
+3. EndPoint: /login, POST
+4. Description: 
+- call service method with the questions information.
+- Do not try except. We have global Exception Handler.
+5. response: if the serivce doesn't throw any exceptions, the controller will respond the proper message.  

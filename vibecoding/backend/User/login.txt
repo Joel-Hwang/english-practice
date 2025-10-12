@@ -7,7 +7,8 @@ Model attributes
 - id: str
 - gender: str (default: female)
 - status: str (default: inactive)
-- createdAt: datetime
+- group: str
+- level: int (default: 1)
 
 Model Name: UserCreate
 Model attributes
@@ -28,7 +29,7 @@ c) Service
 - If there isn't matched userId, it will throw a HTTPException with a proper message (status_code=400, detail=message)
 - If the user's status is 'inactive', it will throw a HTTPException with a proper message (status_code=400, detail=message) 
 - Validate the password with bcrypt.checkpw
-- If it doesn't match, it will throw a HTTPException with a proper message (status_code=400, detail=message)
+- If it doesn't match the password, it will throw a HTTPException with a proper message (status_code=400, detail=message)
 4. return: it will return the UserLogin model.
 5. Test Cases (test/test_userService.py)
 - Successful login.

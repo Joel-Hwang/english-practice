@@ -33,10 +33,11 @@ os.environ["KMP_DUPLICATE_LIB_OK"] = "True"
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from controller import userController
+from controller import userController, questionController
 
 app = FastAPI()
 app.include_router(userController.router)
+app.include_router(questionController.router)
 
 
 app.add_middleware(SessionMiddleware, secret_key="your-very-secret-key")

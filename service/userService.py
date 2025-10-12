@@ -13,7 +13,7 @@ async def registerUser(user_create: UserCreate):
         raise HTTPException(status_code=400, detail="Somebody already took the ID. Please use different one.")
     
     hashed_password = bcrypt.hashpw(user_create.password.encode('utf-8'), bcrypt.gensalt())
-    user = User(id=user_create.id, password=hashed_password.decode('utf-8'))
+    user = User(id=user_create.id, password=hashed_password)
     await userRepository.insertUser(user)
 
 async def login( user_login: UserCreate) -> UserLogin:
@@ -32,7 +32,7 @@ async def login( user_login: UserCreate) -> UserLogin:
     if not bcrypt.checkpw(user_login.password.encode('utf-8'), user.password.encode('utf-8')):
         raise HTTPException(status_code=400, detail="Please check your password again.")
 
-    return UserLogin(id=user.id, gender=user.gender, status=user.status, createdAt=user.createdAt)
+    return UserLogin(id=user.id, gender=user.gender, status=user.status, group=user.group, level=user.level, createdAt=user.createdAt)
 
 async def changePassword(param: ChangePassword):
     user_data = await userRepository.findUserById(param.id)
