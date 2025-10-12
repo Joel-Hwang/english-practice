@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
-from model.user import User, UserCreate, UserLogin
+from model.user import User, UserCreate, UserLogin, ChangePassword
 from repository import userRepository
 import bcrypt
 
@@ -33,3 +33,18 @@ async def login( user_login: UserCreate) -> UserLogin:
         raise HTTPException(status_code=400, detail="Please check your password again.")
 
     return UserLogin(id=user.id, gender=user.gender, status=user.status, createdAt=user.createdAt)
+
+async def changePassword(param: ChangePassword):
+    user_data = await userRepository.findUserById(param.id)
+    if not user_data:
+        raise HTTPException(status_code=422, detail="User not found")
+
+    user = User(**user_data)
+
+    if not bcrypt.checkpw(param.oldPassword.encode('utf-8'), user.password.encode('utf-8')):
+        raise HTTPException(status_code=400, detail="Invalid old password")
+
+    hashed_password = bcrypt.hashpw(param.newPassword.encode('utf-8'), bcrypt.gensalt())
+    user.password = hashed_password.decode('utf-8')
+    
+    await userRepository.updatePassword(user)

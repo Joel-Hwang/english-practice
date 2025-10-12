@@ -17,3 +17,8 @@ class UserLogin(BaseModel):
     gender: str
     status: str
     createdAt: datetime
+
+class ChangePassword(BaseModel):
+    id: str
+    newPassword: str
+    oldPassword: str

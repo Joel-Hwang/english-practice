@@ -9,3 +9,6 @@ async def insertUser(user: User):
 
 async def findUserById(user_id: str):
     return await collection_user.find_one({"id": user_id})
+
+async def updatePassword(user: User):
+    await collection_user.update_one({"id": user.id}, {"$set": {"password": user.password}})
